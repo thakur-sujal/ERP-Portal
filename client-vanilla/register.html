@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - EduERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/auth.css">
+</head>
+
+<body>
+    <div class="auth-container">
+        <div class="auth-bg">
+            <div class="auth-bg-gradient"></div>
+        </div>
+
+        <div class="auth-card glass-card">
+            <div class="auth-header">
+                <div class="auth-logo" id="logo-icon"></div>
+                <h1 class="auth-title">Create Account</h1>
+                <p class="auth-subtitle">Join EduERP today</p>
+            </div>
+
+            <div id="error-message" class="auth-error hidden"></div>
+
+            <form id="register-form" class="auth-form">
+                <div class="auth-row">
+                    <div class="input-group">
+                        <label class="input-label" for="firstName">First Name</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="firstName" name="firstName" class="input-field"
+                                placeholder="First name" required>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label" for="lastName">Last Name</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="lastName" name="lastName" class="input-field" placeholder="Last name"
+                                required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label" for="email">Email</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon" id="email-icon"></span>
+                        <input type="email" id="email" name="email" class="input-field" placeholder="Enter your email"
+                            required>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label" for="password">Password</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon" id="password-icon"></span>
+                        <input type="password" id="password" name="password" class="input-field"
+                            placeholder="Create a password" minlength="6" required>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Role</label>
+                    <div class="role-selector">
+                        <button type="button" class="role-btn active" data-role="student">Student</button>
+                        <button type="button" class="role-btn" data-role="faculty">Faculty</button>
+                    </div>
+                    <input type="hidden" id="role" name="role" value="student">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-md btn-full" id="submit-btn">
+                    <span id="btn-text">Create Account</span>
+                    <span id="btn-loader" class="btn-loader hidden"></span>
+                </button>
+            </form>
+
+            <p class="auth-footer">
+                Already have an account? <a href="login.html">Sign in</a>
+            </p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { icons } from './js/icons.js';
+        import { register, redirectIfLoggedIn, redirectToDashboard } from './js/auth.js';
+        import { showToast } from './js/toast.js';
+
+        // Redirect if already logged in
+        redirectIfLoggedIn();
+
+        // Set icons
+        document.getElementById('logo-icon').innerHTML = icons.graduationCap.replace(/width="\d+"/, 'width="40"').replace(/height="\d+"/, 'height="40"');
+        document.getElementById('email-icon').innerHTML = icons.mail;
+        document.getElementById('password-icon').innerHTML = icons.lock;
+
+        // Role selector
+        document.querySelectorAll('.role-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('role').value = btn.dataset.role;
+            });
+        });
+
+        // Form submission
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = {
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                role: document.getElementById('role').value
+            };
+
+            const submitBtn = document.getElementById('submit-btn');
+            const btnText = document.getElementById('btn-text');
+            const btnLoader = document.getElementById('btn-loader');
+            const errorDiv = document.getElementById('error-message');
+
+            submitBtn.disabled = true;
+            btnText.textContent = 'Creating account...';
+            btnLoader.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+
+            try {
+                await register(formData);
+                showToast('Account created successfully!', 'success');
+                redirectToDashboard();
+            } catch (error) {
+                errorDiv.textContent = error.message || 'Registration failed. Please try again.';
+                errorDiv.classList.remove('hidden');
+                showToast(error.message || 'Registration failed', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                btnText.textContent = 'Create Account';
+                btnLoader.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+
+</html>

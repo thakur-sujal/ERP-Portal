@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timetable - EduERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <style>
+        .timetable-container {
+            overflow-x: auto;
+        }
+
+        .timetable-grid {
+            display: grid;
+            grid-template-columns: 100px repeat(5, minmax(150px, 1fr));
+            gap: 2px;
+            background: var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            min-width: 900px;
+        }
+
+        .timetable-cell {
+            background: var(--bg-secondary);
+            padding: 0.75rem;
+            min-height: 70px;
+            font-size: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .timetable-header {
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            font-weight: 600;
+            text-align: center;
+            color: white;
+            min-height: 50px;
+        }
+
+        .time-slot {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .class-item {
+            background: rgba(59, 130, 246, 0.15);
+            border-left: 3px solid var(--color-primary);
+            padding: 0.5rem;
+            border-radius: 6px;
+            margin-bottom: 0.25rem;
+        }
+
+        .class-item.lab {
+            background: rgba(139, 92, 246, 0.15);
+            border-left-color: var(--color-secondary);
+        }
+
+        .class-item.placement {
+            background: rgba(245, 158, 11, 0.15);
+            border-left-color: var(--color-warning);
+        }
+
+        .class-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.75rem;
+        }
+
+        .class-code {
+            font-size: 0.65rem;
+            color: var(--color-primary);
+            font-weight: 500;
+        }
+
+        .class-room {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .lunch-break {
+            background: rgba(34, 197, 94, 0.1);
+            text-align: center;
+            font-weight: 500;
+            color: var(--color-success);
+        }
+
+        .room-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <div id="sidebar"></div>
+        <main class="main-content" id="main-content">
+            <div class="animate-fade-in">
+                <div class="page-header">
+                    <h1 class="page-title">Weekly Timetable</h1>
+                    <p class="page-subtitle">Semester 6 • Computer Science • Class Room: LH 415</p>
+                </div>
+
+                <div class="room-info">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span><strong>Class Mentor:</strong> Ms. Ambuja Kulshreshtha</span>
+                </div>
+
+                <div class="card glass-card">
+                    <div class="timetable-container">
+                        <div class="timetable-grid">
+                            <!-- Header Row -->
+                            <div class="timetable-cell timetable-header">Time</div>
+                            <div class="timetable-cell timetable-header">Monday</div>
+                            <div class="timetable-cell timetable-header">Tuesday</div>
+                            <div class="timetable-cell timetable-header">Wednesday</div>
+                            <div class="timetable-cell timetable-header">Thursday</div>
+                            <div class="timetable-cell timetable-header">Friday</div>
+
+                            <!-- 9:30 - 10:20 -->
+                            <div class="timetable-cell time-slot">9:30 - 10:20<br>(Slot 1)</div>
+                            <div class="timetable-cell">
+                                <div class="class-item placement">
+                                    <div class="class-code">PRP</div>
+                                    <div class="class-name">Placement Lab</div>
+                                    <div class="class-room">Lab 002</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSS303T</div>
+                                    <div class="class-name">Data Science</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSS303T</div>
+                                    <div class="class-name">Data Science</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSC303J</div>
+                                    <div class="class-name">SE & PM</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSC304J</div>
+                                    <div class="class-name">Compiler Design</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+
+                            <!-- 10:20 - 11:10 -->
+                            <div class="timetable-cell time-slot">10:20 - 11:10<br>(Slot 2)</div>
+                            <div class="timetable-cell">
+                                <div class="class-item placement">
+                                    <div class="class-code">PRP</div>
+                                    <div class="class-name">Placement Lab</div>
+                                    <div class="class-room">Lab 002</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSC303J</div>
+                                    <div class="class-name">SE & PM</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSC303J</div>
+                                    <div class="class-name">SE & PM</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">CSV0815J</div>
+                                    <div class="class-name">Agile Dev & Testing</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21EEO304T</div>
+                                    <div class="class-name">Energy Efficient</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+
+                            <!-- 11:10 - 11:20 BREAK -->
+                            <div class="timetable-cell time-slot">11:10 - 11:20</div>
+                            <div class="timetable-cell lunch-break" style="grid-column: span 5; text-align: center;">B R
+                                E A K</div>
+
+                            <!-- 11:20 - 12:10 -->
+                            <div class="timetable-cell time-slot">11:20 - 12:10<br>(Slot 3)</div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSS303T</div>
+                                    <div class="class-name">Data Science</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item lab">
+                                    <div class="class-code">21CSC304J</div>
+                                    <div class="class-name">Compiler Design Lab</div>
+                                    <div class="class-room">Lab C-12</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item placement">
+                                    <div class="class-code">PRP</div>
+                                    <div class="class-name">Placement</div>
+                                    <div class="class-room">-</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSE356T</div>
+                                    <div class="class-name">NLP</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item lab">
+                                    <div class="class-code">21CSC303J</div>
+                                    <div class="class-name">SE & PM Lab</div>
+                                    <div class="class-room">Lab C-4/C-5</div>
+                                </div>
+                            </div>
+
+                            <!-- 12:10 - 1:00 -->
+                            <div class="timetable-cell time-slot">12:10 - 1:00<br>(Slot 4)</div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21EEO304T</div>
+                                    <div class="class-name">Energy Efficient</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item lab">
+                                    <div class="class-code">21CSC304J</div>
+                                    <div class="class-name">Compiler Design Lab</div>
+                                    <div class="class-room">Lab C-12</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item placement">
+                                    <div class="class-code">PRP</div>
+                                    <div class="class-name">Placement</div>
+                                    <div class="class-room">-</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSC304J</div>
+                                    <div class="class-name">Compiler Design</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item lab">
+                                    <div class="class-code">21CSC303J</div>
+                                    <div class="class-name">SE & PM Lab</div>
+                                    <div class="class-room">Lab C-4/C-5</div>
+                                </div>
+                            </div>
+
+                            <!-- LUNCH BREAK -->
+                            <div class="timetable-cell time-slot">1:00 - 2:10</div>
+                            <div class="timetable-cell lunch-break" style="grid-column: span 5; text-align: center;">L U
+                                N C H</div>
+
+                            <!-- 2:10 - 3:00 -->
+                            <div class="timetable-cell time-slot">2:10 - 3:00<br>(Slot 5)</div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSE355T/358T</div>
+                                    <div class="class-name">Data Mining / Network Sec</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSE355T/358T</div>
+                                    <div class="class-name">Data Mining / Network Sec</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSE355T/358T</div>
+                                    <div class="class-name">Data Mining / Network Sec</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSE355T/358T</div>
+                                    <div class="class-name">Data Mining / Network Sec</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item lab">
+                                    <div class="class-code">21CSP302L</div>
+                                    <div class="class-name">Project</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+
+                            <!-- 3:00 - 3:50 -->
+                            <div class="timetable-cell time-slot">3:00 - 3:50<br>(Slot 6)</div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21CSC304J</div>
+                                    <div class="class-name">Compiler Design</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item placement">
+                                    <div class="class-code">PRP</div>
+                                    <div class="class-name">Placement</div>
+                                    <div class="class-room">-</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21EEO304T</div>
+                                    <div class="class-name">Energy Efficient</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item placement">
+                                    <div class="class-code">PRP</div>
+                                    <div class="class-name">Placement</div>
+                                    <div class="class-room">-</div>
+                                </div>
+                            </div>
+                            <div class="timetable-cell">
+                                <div class="class-item">
+                                    <div class="class-code">21LEM302T</div>
+                                    <div class="class-name">Indian Traditional Knowledge</div>
+                                    <div class="class-room">LH 415</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Course List -->
+                <div class="card glass-card" style="margin-top: 1.5rem;">
+                    <div class="card-header">
+                        <h3 class="card-title">Semester 6 Courses</h3>
+                    </div>
+                    <div class="card-content">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Subject Name</th>
+                                    <th>L</th>
+                                    <th>T</th>
+                                    <th>P</th>
+                                    <th>C</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="badge badge-primary">21CSS303T</span></td>
+                                    <td>Data Science</td>
+                                    <td>2</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                    <td>2</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-primary">21CSC303J</span></td>
+                                    <td>Software Engineering and Project Management</td>
+                                    <td>2</td>
+                                    <td>0</td>
+                                    <td>2</td>
+                                    <td>3</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-primary">21CSC304J</span></td>
+                                    <td>Compiler Design</td>
+                                    <td>2</td>
+                                    <td>0</td>
+                                    <td>2</td>
+                                    <td>3</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-primary">21CSE355T</span></td>
+                                    <td>Data Mining and Analytics</td>
+                                    <td>3</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                    <td>3</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-primary">21CSE358T</span></td>
+                                    <td>Network Security and Cryptography</td>
+                                    <td>3</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                    <td>3</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-primary">21CSE356T</span></td>
+                                    <td>Natural Language Processing</td>
+                                    <td>3</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                    <td>3</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-primary">21EEO304T</span></td>
+                                    <td>Energy Efficient Practices</td>
+                                    <td>3</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                    <td>3</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-secondary">21CSP302L</span></td>
+                                    <td>Project</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                    <td>6</td>
+                                    <td>3</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-secondary">21CSP303T</span></td>
+                                    <td>MOOC</td>
+                                    <td>3</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-warning">21LEM302T</span></td>
+                                    <td>Indian Traditional Knowledge</td>
+                                    <td>1</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-warning">PRP</span></td>
+                                    <td>Placement Readiness Program / CDC</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                    <td>6</td>
+                                    <td>0</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-success">CSV0815J</span></td>
+                                    <td>Agile Software Development And Testing</td>
+                                    <td>1</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                    <td>0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { requireAuth, getUser } from './js/auth.js';
+        import { renderSidebar } from './js/components.js';
+
+        const user = getUser();
+        if (!requireAuth()) throw new Error('Access denied');
+
+        document.getElementById('sidebar').innerHTML = renderSidebar(user.role, 'timetable');
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mark Attendance - EduERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <style>
+        .attendance-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .student-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+        }
+
+        .student-info {
+            flex: 1;
+        }
+
+        .student-name {
+            font-weight: 500;
+        }
+
+        .student-roll {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .attendance-toggle {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .att-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .att-btn.present.active {
+            background: var(--color-success);
+            color: white;
+            border-color: var(--color-success);
+        }
+
+        .att-btn.absent.active {
+            background: var(--color-error);
+            color: white;
+            border-color: var(--color-error);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <div id="sidebar"></div>
+        <main class="main-content" id="main-content">
+            <div class="page-loader">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { requireAuth, getProfile } from '../js/auth.js';
+        import { facultyService, courseService, attendanceService } from '../js/api.js';
+        import { renderSidebar, renderCard } from '../js/components.js';
+        import { showToast } from '../js/toast.js';
+
+        if (!requireAuth(['faculty'])) throw new Error('Access denied');
+
+        document.getElementById('sidebar').innerHTML = renderSidebar('faculty', 'attendance');
+
+        let courses = [];
+        let students = [];
+        let selectedCourse = null;
+        let attendance = {};
+
+        async function init() {
+            try {
+                const profileData = await getProfile();
+                const profile = profileData?.profile;
+                if (!profile) {
+                    document.getElementById('main-content').innerHTML = '<p class="text-muted p-6">No faculty profile found</p>';
+                    return;
+                }
+
+                const courseRes = await facultyService.getCourses(profile._id);
+                courses = courseRes.courses || [];
+                renderPage();
+            } catch (error) {
+                showToast('Failed to load data', 'error');
+            }
+        }
+
+        async function loadStudents(courseId) {
+            try {
+                const data = await courseService.getStudents(courseId);
+                students = data.students || [];
+                attendance = {};
+                students.forEach(s => attendance[s._id] = 'present');
+                renderPage();
+            } catch (error) {
+                showToast('Failed to load students', 'error');
+            }
+        }
+
+        function renderPage() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">Mark Attendance</h1>
+                        <p class="page-subtitle">Select a course and mark student attendance</p>
+                    </div>
+
+                    <div class="card glass-card" style="margin-bottom: 1.5rem;">
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                            <div class="input-group" style="flex: 1; min-width: 200px; margin: 0;">
+                                <select id="courseSelect" class="select-field" onchange="window.selectCourse(this.value)">
+                                    <option value="">Select Course</option>
+                                    ${courses.map(c => `
+                                        <option value="${c._id}" ${selectedCourse === c._id ? 'selected' : ''}>
+                                            ${c.courseCode} - ${c.courseName}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div class="input-group" style="min-width: 150px; margin: 0;">
+                                <input type="date" id="attendanceDate" class="select-field" value="${new Date().toISOString().split('T')[0]}">
+                            </div>
+                        </div>
+                    </div>
+
+                    ${selectedCourse ? `
+                        ${renderCard('Students', students.length > 0 ? `
+                            <div class="attendance-grid">
+                                ${students.map(s => `
+                                    <div class="student-row">
+                                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
+                                            ${s.user?.firstName?.[0] || ''}${s.user?.lastName?.[0] || ''}
+                                        </div>
+                                        <div class="student-info">
+                                            <div class="student-name">${s.user?.firstName || ''} ${s.user?.lastName || ''}</div>
+                                            <div class="student-roll">${s.rollNumber || ''}</div>
+                                        </div>
+                                        <div class="attendance-toggle">
+                                            <button class="att-btn present ${attendance[s._id] === 'present' ? 'active' : ''}" 
+                                                    onclick="window.setAttendance('${s._id}', 'present')">Present</button>
+                                            <button class="att-btn absent ${attendance[s._id] === 'absent' ? 'active' : ''}" 
+                                                    onclick="window.setAttendance('${s._id}', 'absent')">Absent</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                                <button class="btn btn-primary btn-md" onclick="window.submitAttendance()">Submit Attendance</button>
+                            </div>
+                        ` : '<p class="text-muted text-center p-4">No students enrolled in this course</p>')}
+                    ` : '<p class="text-muted text-center p-6">Select a course to mark attendance</p>'}
+                </div>
+            `;
+        }
+
+        window.selectCourse = (courseId) => {
+            selectedCourse = courseId;
+            if (courseId) loadStudents(courseId);
+            else { students = []; renderPage(); }
+        };
+
+        window.setAttendance = (studentId, status) => {
+            attendance[studentId] = status;
+            renderPage();
+        };
+
+        window.submitAttendance = async () => {
+            const date = document.getElementById('attendanceDate').value;
+            if (!date || !selectedCourse) {
+                showToast('Please select course and date', 'warning');
+                return;
+            }
+
+            const records = Object.entries(attendance).map(([studentId, status]) => ({
+                student: studentId,
+                course: selectedCourse,
+                date,
+                status
+            }));
+
+            try {
+                await attendanceService.mark({ records });
+                showToast('Attendance submitted successfully', 'success');
+            } catch (error) {
+                showToast(error.message || 'Failed to submit', 'error');
+            }
+        };
+
+        init();
+    </script>
+</body>
+
+</html>

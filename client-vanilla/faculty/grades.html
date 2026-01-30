@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Grades - EduERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <style>
+        .grade-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .grade-input {
+            padding: 0.5rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            width: 100%;
+            text-align: center;
+        }
+
+        .grade-input:focus {
+            border-color: var(--color-primary);
+            outline: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <div id="sidebar"></div>
+        <main class="main-content" id="main-content">
+            <div class="page-loader">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { requireAuth, getProfile } from '../js/auth.js';
+        import { facultyService, courseService, gradeService } from '../js/api.js';
+        import { renderSidebar, renderCard } from '../js/components.js';
+        import { showToast } from '../js/toast.js';
+
+        if (!requireAuth(['faculty'])) throw new Error('Access denied');
+
+        document.getElementById('sidebar').innerHTML = renderSidebar('faculty', 'grades');
+
+        let courses = [];
+        let students = [];
+        let selectedCourse = null;
+        let grades = {};
+
+        async function init() {
+            try {
+                const profileData = await getProfile();
+                const profile = profileData?.profile;
+                if (!profile) {
+                    document.getElementById('main-content').innerHTML = '<p class="text-muted p-6">No faculty profile found</p>';
+                    return;
+                }
+
+                const courseRes = await facultyService.getCourses(profile._id);
+                courses = courseRes.courses || [];
+                renderPage();
+            } catch (error) {
+                showToast('Failed to load data', 'error');
+            }
+        }
+
+        async function loadStudents(courseId) {
+            try {
+                const data = await courseService.getStudents(courseId);
+                students = data.students || [];
+                grades = {};
+                students.forEach(s => grades[s._id] = { marks: '', maxMarks: 100 });
+                renderPage();
+            } catch (error) {
+                showToast('Failed to load students', 'error');
+            }
+        }
+
+        function renderPage() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">Upload Grades</h1>
+                        <p class="page-subtitle">Enter grades for students</p>
+                    </div>
+
+                    <div class="card glass-card" style="margin-bottom: 1.5rem;">
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                            <div class="input-group" style="flex: 1; min-width: 200px; margin: 0;">
+                                <select id="courseSelect" class="select-field" onchange="window.selectCourse(this.value)">
+                                    <option value="">Select Course</option>
+                                    ${courses.map(c => `
+                                        <option value="${c._id}" ${selectedCourse === c._id ? 'selected' : ''}>
+                                            ${c.courseCode} - ${c.courseName}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div class="input-group" style="min-width: 150px; margin: 0;">
+                                <select id="examType" class="select-field">
+                                    <option value="midterm">Midterm</option>
+                                    <option value="final">Final</option>
+                                    <option value="assignment">Assignment</option>
+                                    <option value="quiz">Quiz</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${selectedCourse ? `
+                        ${renderCard('Student Grades', students.length > 0 ? `
+                            <div class="grade-row" style="background: var(--bg-secondary); font-weight: 600; font-size: 0.875rem;">
+                                <div>Student</div>
+                                <div style="text-align: center;">Marks</div>
+                                <div style="text-align: center;">Max Marks</div>
+                                <div style="text-align: center;">Grade</div>
+                            </div>
+                            ${students.map(s => `
+                                <div class="grade-row">
+                                    <div>
+                                        <div style="font-weight: 500;">${s.user?.firstName || ''} ${s.user?.lastName || ''}</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-muted);">${s.rollNumber || ''}</div>
+                                    </div>
+                                    <input type="number" class="grade-input" min="0" max="100" 
+                                           id="marks-${s._id}" value="${grades[s._id]?.marks || ''}"
+                                           onchange="window.updateGrade('${s._id}', 'marks', this.value)">
+                                    <input type="number" class="grade-input" min="1" max="100" 
+                                           id="maxMarks-${s._id}" value="${grades[s._id]?.maxMarks || 100}"
+                                           onchange="window.updateGrade('${s._id}', 'maxMarks', this.value)">
+                                    <div style="text-align: center;" id="grade-${s._id}">
+                                        ${calculateGrade(grades[s._id]?.marks, grades[s._id]?.maxMarks)}
+                                    </div>
+                                </div>
+                            `).join('')}
+                            <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                                <button class="btn btn-primary btn-md" onclick="window.submitGrades()">Submit Grades</button>
+                            </div>
+                        ` : '<p class="text-muted text-center p-4">No students enrolled</p>')}
+                    ` : '<p class="text-muted text-center p-6">Select a course to enter grades</p>'}
+                </div>
+            `;
+        }
+
+        function calculateGrade(marks, maxMarks) {
+            if (!marks || !maxMarks) return '-';
+            const pct = (marks / maxMarks) * 100;
+            if (pct >= 90) return '<span class="badge badge-success">A+</span>';
+            if (pct >= 80) return '<span class="badge badge-success">A</span>';
+            if (pct >= 70) return '<span class="badge badge-primary">B</span>';
+            if (pct >= 60) return '<span class="badge badge-warning">C</span>';
+            if (pct >= 50) return '<span class="badge badge-warning">D</span>';
+            return '<span class="badge badge-error">F</span>';
+        }
+
+        window.selectCourse = (courseId) => {
+            selectedCourse = courseId;
+            if (courseId) loadStudents(courseId);
+            else { students = []; renderPage(); }
+        };
+
+        window.updateGrade = (studentId, field, value) => {
+            if (!grades[studentId]) grades[studentId] = {};
+            grades[studentId][field] = parseInt(value) || '';
+            document.getElementById(`grade-${studentId}`).innerHTML =
+                calculateGrade(grades[studentId].marks, grades[studentId].maxMarks);
+        };
+
+        window.submitGrades = async () => {
+            const examType = document.getElementById('examType').value;
+            const records = students
+                .filter(s => grades[s._id]?.marks)
+                .map(s => ({
+                    student: s._id,
+                    course: selectedCourse,
+                    examType,
+                    marks: grades[s._id].marks,
+                    maxMarks: grades[s._id].maxMarks || 100
+                }));
+
+            if (records.length === 0) {
+                showToast('No grades to submit', 'warning');
+                return;
+            }
+
+            try {
+                await gradeService.upload({ grades: records });
+                showToast('Grades submitted successfully', 'success');
+            } catch (error) {
+                showToast(error.message || 'Failed to submit', 'error');
+            }
+        };
+
+        init();
+    </script>
+</body>
+
+</html>

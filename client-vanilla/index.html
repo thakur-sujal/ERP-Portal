@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduERP - College ERP Portal</title>
+    <script>
+        // Check if logged in and redirect appropriately
+        const token = localStorage.getItem('token');
+        const user = localStorage.getItem('user');
+
+        if (token && user) {
+            try {
+                const userData = JSON.parse(user);
+                window.location.href = `/${userData.role}/dashboard.html`;
+            } catch {
+                window.location.href = '/login.html';
+            }
+        } else {
+            window.location.href = '/login.html';
+        }
+    </script>
+</head>
+
+<body>
+    <p>Redirecting...</p>
+</body>
+
+</html>

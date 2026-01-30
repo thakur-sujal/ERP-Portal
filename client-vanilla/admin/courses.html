@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Management - EduERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <div id="sidebar"></div>
+        <main class="main-content" id="main-content">
+            <div class="page-loader">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Course Modal -->
+    <div id="courseModal" class="modal-overlay hidden">
+        <div class="modal-content medium">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Add Course</h2>
+                <button class="modal-close" onclick="closeModal('courseModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="courseForm">
+                    <input type="hidden" id="courseId">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <div class="input-group">
+                            <label class="input-label">Course Code</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="courseCode" class="input-field" required>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Course Name</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="courseName" class="input-field" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <div class="input-group">
+                            <label class="input-label">Department</label>
+                            <select id="department" class="select-field" required>
+                                <option value="">Select Department</option>
+                                <option value="Computer Science">Computer Science</option>
+                                <option value="Electronics">Electronics</option>
+                                <option value="Mechanical">Mechanical</option>
+                                <option value="Civil">Civil</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Semester</label>
+                            <select id="semester" class="select-field" required>
+                                ${[1,2,3,4,5,6,7,8].map(s => `<option value="${s}">Semester ${s}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-bottom: 1rem;">
+                        <label class="input-label">Credits</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="credits" class="input-field" min="1" max="6" value="3" required>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-bottom: 1.5rem;">
+                        <label class="input-label">Description</label>
+                        <div class="input-wrapper">
+                            <textarea id="description" class="input-field" rows="3"
+                                style="resize: vertical;"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="padding: 0; border: none;">
+                        <button type="button" class="btn btn-secondary btn-md"
+                            onclick="closeModal('courseModal')">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-md">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { requireAuth } from '../js/auth.js';
+        import { courseService } from '../js/api.js';
+        import { renderSidebar, renderBadge, showModal, closeModal } from '../js/components.js';
+        import { icon } from '../js/icons.js';
+        import { showToast } from '../js/toast.js';
+
+        if (!requireAuth(['admin'])) throw new Error('Access denied');
+
+        document.getElementById('sidebar').innerHTML = renderSidebar('admin', 'courses');
+
+        let courses = [];
+
+        async function loadCourses() {
+            try {
+                const data = await courseService.getAll({});
+                courses = data.courses || data || [];
+                renderCourses();
+            } catch (error) {
+                showToast('Failed to load courses', 'error');
+            }
+        }
+
+        function renderCourses() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">Course Management</h1>
+                        <p class="page-subtitle">Manage all courses in the system</p>
+                    </div>
+
+                    <div class="page-actions">
+                        <div class="search-box">
+                            ${icon('search')}
+                            <input type="text" placeholder="Search courses..." onkeyup="window.searchCourses(this.value)">
+                        </div>
+                        <button class="btn btn-primary btn-md" onclick="window.openAddModal()">
+                            ${icon('plus')} Add Course
+                        </button>
+                    </div>
+
+                    <div class="card glass-card">
+                        ${courses.length > 0 ? `
+                            <table class="data-table" id="coursesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Name</th>
+                                        <th>Department</th>
+                                        <th>Semester</th>
+                                        <th>Credits</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${courses.map(c => `
+                                        <tr>
+                                            <td>${renderBadge(c.courseCode, 'primary')}</td>
+                                            <td>${c.courseName}</td>
+                                            <td>${c.department}</td>
+                                            <td>Sem ${c.semester}</td>
+                                            <td>${c.credits}</td>
+                                            <td>
+                                                <button class="action-btn edit" onclick="window.editCourse('${c._id}')">${icon('edit')}</button>
+                                                <button class="action-btn delete" onclick="window.deleteCourse('${c._id}')">${icon('trash')}</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<p class="text-muted text-center p-6">No courses found</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        window.searchCourses = (query) => {
+            document.querySelectorAll('#coursesTable tbody tr').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(query.toLowerCase()) ? '' : 'none';
+            });
+        };
+
+        window.openAddModal = () => {
+            document.getElementById('modalTitle').textContent = 'Add Course';
+            document.getElementById('courseForm').reset();
+            document.getElementById('courseId').value = '';
+            showModal('courseModal');
+        };
+
+        window.editCourse = (id) => {
+            const course = courses.find(c => c._id === id);
+            if (!course) return;
+            document.getElementById('modalTitle').textContent = 'Edit Course';
+            document.getElementById('courseId').value = course._id;
+            document.getElementById('courseCode').value = course.courseCode;
+            document.getElementById('courseName').value = course.courseName;
+            document.getElementById('department').value = course.department;
+            document.getElementById('semester').value = course.semester;
+            document.getElementById('credits').value = course.credits;
+            document.getElementById('description').value = course.description || '';
+            showModal('courseModal');
+        };
+
+        window.deleteCourse = async (id) => {
+            if (!confirm('Delete this course?')) return;
+            try {
+                await courseService.delete(id);
+                showToast('Course deleted', 'success');
+                loadCourses();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        };
+
+        document.getElementById('courseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('courseId').value;
+            const data = {
+                courseCode: document.getElementById('courseCode').value,
+                courseName: document.getElementById('courseName').value,
+                department: document.getElementById('department').value,
+                semester: parseInt(document.getElementById('semester').value),
+                credits: parseInt(document.getElementById('credits').value),
+                description: document.getElementById('description').value
+            };
+
+            try {
+                if (id) {
+                    await courseService.update(id, data);
+                    showToast('Course updated', 'success');
+                } else {
+                    await courseService.create(data);
+                    showToast('Course created', 'success');
+                }
+                closeModal('courseModal');
+                loadCourses();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+
+        loadCourses();
+    </script>
+</body>
+
+</html>

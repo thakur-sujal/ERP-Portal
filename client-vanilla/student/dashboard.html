@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - EduERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <div id="sidebar"></div>
+        <main class="main-content" id="main-content">
+            <div class="page-loader" id="loader">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { requireAuth, getUser, getProfile } from '../js/auth.js';
+        import { studentService } from '../js/api.js';
+        import { renderSidebar, renderStatCard, renderCard, renderBadge, renderTable } from '../js/components.js';
+        import { showToast } from '../js/toast.js';
+
+        // Require student role
+        if (!requireAuth(['student'])) {
+            throw new Error('Access denied');
+        }
+
+        const user = getUser();
+
+        // Render sidebar
+        document.getElementById('sidebar').innerHTML = renderSidebar('student', 'dashboard');
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const profileData = await getProfile();
+                const profile = profileData?.profile;
+
+                if (!profile) {
+                    renderNoProfile();
+                    return;
+                }
+
+                const [attRes, gradeRes] = await Promise.all([
+                    studentService.getAttendance(profile._id, {}),
+                    studentService.getGrades(profile._id, {})
+                ]);
+
+                renderDashboard(profile, attRes.summary || [], gradeRes);
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+                showToast('Failed to load data', 'error');
+                renderError();
+            }
+        }
+
+        function renderNoProfile() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">Welcome, ${user?.firstName}!</h1>
+                        <p class="page-subtitle">Your student profile is being set up. Please contact admin.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderError() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">Welcome, ${user?.firstName}!</h1>
+                        <p class="page-subtitle">Error loading data. Please refresh the page.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDashboard(profile, attendance, gradesData) {
+            const grades = gradesData.grades || [];
+            const cgpa = gradesData.cgpa || 'N/A';
+
+            const avgAttendance = attendance.length > 0
+                ? (attendance.reduce((acc, a) => acc + parseFloat(a.percentage), 0) / attendance.length).toFixed(1)
+                : 0;
+
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">Welcome, ${user?.firstName}!</h1>
+                        <p class="page-subtitle">
+                            ${profile.department || 'N/A'} • Semester ${profile.semester || 1} • Roll: ${profile.rollNumber || 'N/A'}
+                        </p>
+                    </div>
+
+                    <div class="stats-grid">
+                        ${renderStatCard('Enrolled Courses', profile.enrolledCourses?.length || 0, 'bookOpen', 'primary')}
+                        ${renderStatCard('Average Attendance', `${avgAttendance}%`, 'clipboardList', parseFloat(avgAttendance) >= 75 ? 'success' : 'warning')}
+                        ${renderStatCard('CGPA', cgpa, 'award', 'secondary')}
+                        ${renderStatCard('Semester', profile.semester || 1, 'calendar', 'success')}
+                    </div>
+
+                    <div class="content-grid">
+                        ${renderCard('Attendance Summary', attendance.length > 0 ? `
+                            ${renderTable(
+                ['Course', 'Present', 'Absent', 'Percentage'],
+                attendance.map(a => `
+                                    <tr>
+                                        <td>${a.course?.courseName || 'Unknown'}</td>
+                                        <td>${a.present}</td>
+                                        <td>${a.absent}</td>
+                                        <td>${renderBadge(`${a.percentage}%`, parseFloat(a.percentage) >= 75 ? 'success' : 'warning')}</td>
+                                    </tr>
+                                `)
+            )}
+                        ` : '<p class="text-muted text-center p-4">No attendance records yet</p>')}
+
+                        ${renderCard('Recent Grades', grades.length > 0 ? `
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                ${grades.slice(0, 5).map(g => `
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 8px;">
+                                        <div>
+                                            <p style="font-weight: 500; color: var(--text-primary);">${g.course?.courseName || 'Unknown'}</p>
+                                            <p style="font-size: 0.75rem; color: var(--text-muted);">${g.examType || ''}</p>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <p style="font-weight: 600; color: var(--text-primary);">${g.marks}/${g.maxMarks}</p>
+                                            ${renderBadge(g.grade, g.grade !== 'F' ? 'success' : 'error')}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p class="text-muted text-center p-4">No grades yet</p>')}
+                    </div>
+                </div>
+            `;
+        }
+
+        loadDashboard();
+    </script>
+</body>
+
+</html>

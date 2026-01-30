@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - EduERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <div id="sidebar"></div>
+        <main class="main-content" id="main-content">
+            <div class="page-loader" id="loader">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit User Modal -->
+    <div id="userModal" class="modal-overlay hidden">
+        <div class="modal-content medium">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Add User</h2>
+                <button class="modal-close" onclick="closeModal('userModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <div class="input-group">
+                            <label class="input-label">First Name</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="firstName" name="firstName" class="input-field" required>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Last Name</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="lastName" name="lastName" class="input-field" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-bottom: 1rem;">
+                        <label class="input-label">Email</label>
+                        <div class="input-wrapper">
+                            <input type="email" id="email" name="email" class="input-field" required>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-bottom: 1rem;" id="passwordGroup">
+                        <label class="input-label">Password</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="password" name="password" class="input-field" minlength="6">
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-bottom: 1.5rem;">
+                        <label class="input-label">Role</label>
+                        <select id="role" name="role" class="select-field" required>
+                            <option value="student">Student</option>
+                            <option value="faculty">Faculty</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="modal-footer" style="padding: 0; border: none;">
+                        <button type="button" class="btn btn-secondary btn-md"
+                            onclick="closeModal('userModal')">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-md">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { requireAuth } from '../js/auth.js';
+        import { userService } from '../js/api.js';
+        import { renderSidebar, renderCard, renderBadge, renderTable, showModal, closeModal } from '../js/components.js';
+        import { icons, icon } from '../js/icons.js';
+        import { showToast } from '../js/toast.js';
+
+        if (!requireAuth(['admin'])) throw new Error('Access denied');
+
+        document.getElementById('sidebar').innerHTML = renderSidebar('admin', 'users');
+
+        let users = [];
+        let filter = 'all';
+
+        async function loadUsers() {
+            try {
+                const params = filter !== 'all' ? { role: filter } : {};
+                const data = await userService.getAll(params);
+                users = data.users || data || [];
+                renderUsers();
+            } catch (error) {
+                console.error('Failed to load users:', error);
+                showToast('Failed to load users', 'error');
+            }
+        }
+
+        function renderUsers() {
+            const filteredUsers = filter === 'all' ? users : users.filter(u => u.role === filter);
+
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">User Management</h1>
+                        <p class="page-subtitle">Manage all users in the system</p>
+                    </div>
+
+                    <div class="page-actions">
+                        <div class="search-box">
+                            ${icon('search')}
+                            <input type="text" id="searchInput" placeholder="Search users..." onkeyup="window.handleSearch(this.value)">
+                        </div>
+                        <div class="filter-group">
+                            <button class="filter-btn ${filter === 'all' ? 'active' : ''}" onclick="window.setFilter('all')">All</button>
+                            <button class="filter-btn ${filter === 'student' ? 'active' : ''}" onclick="window.setFilter('student')">Students</button>
+                            <button class="filter-btn ${filter === 'faculty' ? 'active' : ''}" onclick="window.setFilter('faculty')">Faculty</button>
+                            <button class="filter-btn ${filter === 'admin' ? 'active' : ''}" onclick="window.setFilter('admin')">Admins</button>
+                        </div>
+                        <button class="btn btn-primary btn-md" onclick="window.openAddModal()">
+                            ${icon('plus')} Add User
+                        </button>
+                    </div>
+
+                    <div class="card glass-card">
+                        ${filteredUsers.length > 0 ? `
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                    ${filteredUsers.map(u => `
+                                        <tr>
+                                            <td>
+                                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                                    <div style="width: 36px; height: 36px; background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.75rem; font-weight: 600;">
+                                                        ${u.firstName?.[0] || ''}${u.lastName?.[0] || ''}
+                                                    </div>
+                                                    <span>${u.firstName} ${u.lastName}</span>
+                                                </div>
+                                            </td>
+                                            <td>${u.email}</td>
+                                            <td>${renderBadge(u.role, u.role === 'admin' ? 'error' : u.role === 'faculty' ? 'warning' : 'primary')}</td>
+                                            <td>${renderBadge(u.isActive !== false ? 'Active' : 'Inactive', u.isActive !== false ? 'success' : 'error')}</td>
+                                            <td>
+                                                <button class="action-btn edit" onclick="window.editUser('${u._id}')" title="Edit">
+                                                    ${icon('edit')}
+                                                </button>
+                                                <button class="action-btn delete" onclick="window.deleteUser('${u._id}')" title="Delete">
+                                                    ${icon('trash')}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<p class="text-muted text-center p-6">No users found</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        window.setFilter = (f) => {
+            filter = f;
+            renderUsers();
+        };
+
+        window.handleSearch = (query) => {
+            const rows = document.querySelectorAll('#usersTableBody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(query.toLowerCase()) ? '' : 'none';
+            });
+        };
+
+        window.openAddModal = () => {
+            document.getElementById('modalTitle').textContent = 'Add User';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('passwordGroup').style.display = 'block';
+            document.getElementById('password').required = true;
+            showModal('userModal');
+        };
+
+        window.editUser = (id) => {
+            const user = users.find(u => u._id === id);
+            if (!user) return;
+
+            document.getElementById('modalTitle').textContent = 'Edit User';
+            document.getElementById('userId').value = user._id;
+            document.getElementById('firstName').value = user.firstName;
+            document.getElementById('lastName').value = user.lastName;
+            document.getElementById('email').value = user.email;
+            document.getElementById('role').value = user.role;
+            document.getElementById('passwordGroup').style.display = 'none';
+            document.getElementById('password').required = false;
+            showModal('userModal');
+        };
+
+        window.deleteUser = async (id) => {
+            if (!confirm('Are you sure you want to delete this user?')) return;
+            try {
+                await userService.delete(id);
+                showToast('User deleted successfully', 'success');
+                loadUsers();
+            } catch (error) {
+                showToast(error.message || 'Failed to delete user', 'error');
+            }
+        };
+
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userId = document.getElementById('userId').value;
+            const formData = {
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                email: document.getElementById('email').value,
+                role: document.getElementById('role').value
+            };
+
+            if (!userId) {
+                formData.password = document.getElementById('password').value;
+            }
+
+            try {
+                if (userId) {
+                    await userService.update(userId, formData);
+                    showToast('User updated successfully', 'success');
+                } else {
+                    await userService.create(formData);
+                    showToast('User created successfully', 'success');
+                }
+                closeModal('userModal');
+                loadUsers();
+            } catch (error) {
+                showToast(error.message || 'Failed to save user', 'error');
+            }
+        });
+
+        loadUsers();
+    </script>
+</body>
+
+</html>

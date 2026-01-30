@@ -1,0 +1,128 @@
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.stat-card:hover::before {
+    opacity: 1;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-card-primary:hover {
+    box-shadow: 0 10px 40px rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.stat-card-primary::before {
+    background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+}
+
+.stat-card-success:hover {
+    box-shadow: 0 10px 40px rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.stat-card-success::before {
+    background: linear-gradient(90deg, transparent, #10b981, transparent);
+}
+
+.stat-card-warning:hover {
+    box-shadow: 0 10px 40px rgba(245, 158, 11, 0.2);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.stat-card-warning::before {
+    background: linear-gradient(90deg, transparent, #f59e0b, transparent);
+}
+
+.stat-card-secondary:hover {
+    box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.stat-card-secondary::before {
+    background: linear-gradient(90deg, transparent, #8b5cf6, transparent);
+}
+
+
+.stat-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    color: white;
+}
+
+.stat-card-primary .stat-icon-wrapper {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.stat-card-success .stat-icon-wrapper {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.stat-card-warning .stat-icon-wrapper {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.stat-card-secondary .stat-icon-wrapper {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-title {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-trend {
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+.stat-trend.positive {
+    color: var(--color-success);
+}
+
+.stat-trend.negative {
+    color: var(--color-error);
+}

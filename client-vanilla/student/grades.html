@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Grades - EduERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <style>
+        .semester-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .semester-tab {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .semester-tab:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .semester-tab.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .grades-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .grades-table th,
+        .grades-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .grades-table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .grades-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .grade-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .grade-O,
+        .grade-A\\+ {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .grade-A,
+        .grade-B\\+ {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .grade-B,
+        .grade-C\\+,
+        .grade-C {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .grade-D {
+            background: rgba(249, 115, 22, 0.2);
+            color: #f97316;
+        }
+
+        .grade-F {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .result-pass {
+            color: #10b981;
+        }
+
+        .result-fail {
+            color: #ef4444;
+        }
+
+        .sgpa-card {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            border-radius: 12px;
+            padding: 1.5rem;
+            color: white;
+            text-align: center;
+        }
+
+        .sgpa-value {
+            font-size: 3rem;
+            font-weight: 800;
+        }
+
+        .sgpa-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .cgpa-card {
+            background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
+            border-radius: 12px;
+            padding: 1.5rem;
+            color: white;
+            text-align: center;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <div id="sidebar"></div>
+        <main class="main-content" id="main-content">
+            <div class="page-loader" id="loader">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { requireAuth, getUser, getProfile } from '../js/auth.js';
+        import { studentService } from '../js/api.js';
+        import { renderSidebar, renderStatCard } from '../js/components.js';
+        import { showToast } from '../js/toast.js';
+
+        if (!requireAuth(['student'])) {
+            throw new Error('Access denied');
+        }
+
+        const user = getUser();
+        document.getElementById('sidebar').innerHTML = renderSidebar('student', 'grades');
+
+        const gradePoints = {
+            'O': 10, 'A+': 9, 'A': 8, 'B+': 7, 'B': 6, 'C+': 5, 'C': 5, 'D': 4, 'F': 0
+        };
+
+        let allGrades = [];
+        let studentProfile = null;
+
+        async function loadGrades() {
+            try {
+                const profileData = await getProfile();
+                studentProfile = profileData?.profile;
+
+                if (!studentProfile) {
+                    document.getElementById('main-content').innerHTML = `
+                        <div class="animate-fade-in">
+                            <div class="page-header">
+                                <h1 class="page-title">My Grades</h1>
+                                <p class="page-subtitle">Your student profile is being set up.</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const gradesRes = await studentService.getGrades(studentProfile._id, {});
+                allGrades = gradesRes.grades || [];
+
+                renderGradesPage();
+            } catch (error) {
+                console.error('Failed to load grades:', error);
+                showToast('Failed to load data', 'error');
+            }
+        }
+
+        function calculateSGPA(grades) {
+            const finalGrades = grades.filter(g => g.examType === 'final');
+            if (finalGrades.length === 0) return 'N/A';
+
+            let totalCredits = 0;
+            let totalPoints = 0;
+
+            finalGrades.forEach(g => {
+                const credits = g.course?.credits || 3;
+                const points = gradePoints[g.grade] || 0;
+                totalCredits += credits;
+                totalPoints += points * credits;
+            });
+
+            return totalCredits > 0 ? (totalPoints / totalCredits).toFixed(2) : 'N/A';
+        }
+
+        function calculateCGPA() {
+            const finalGrades = allGrades.filter(g => g.examType === 'final');
+            if (finalGrades.length === 0) return 'N/A';
+
+            let totalCredits = 0;
+            let totalPoints = 0;
+
+            finalGrades.forEach(g => {
+                const credits = g.course?.credits || 3;
+                const points = gradePoints[g.grade] || 0;
+                totalCredits += credits;
+                totalPoints += points * credits;
+            });
+
+            return totalCredits > 0 ? (totalPoints / totalCredits).toFixed(2) : 'N/A';
+        }
+
+        function getSemesters() {
+            const semesters = [...new Set(allGrades.map(g => g.semester))].sort((a, b) => a - b);
+            return semesters.length > 0 ? semesters : [studentProfile?.semester || 1];
+        }
+
+        function renderGradesPage(activeSem = null) {
+            const semesters = getSemesters();
+            const selectedSem = activeSem || semesters[semesters.length - 1];
+            const semGrades = allGrades.filter(g => g.semester === selectedSem);
+            const finalGrades = semGrades.filter(g => g.examType === 'final');
+
+            const sgpa = calculateSGPA(semGrades);
+            const cgpa = calculateCGPA();
+            const passCount = finalGrades.filter(g => g.grade !== 'F').length;
+            const totalCourses = finalGrades.length;
+
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">My Grades & Results</h1>
+                        <p class="page-subtitle">
+                            ${studentProfile?.department || 'N/A'} • Roll: ${studentProfile?.rollNumber || 'N/A'}
+                        </p>
+                    </div>
+
+                    <div class="semester-tabs">
+                        ${semesters.map(sem => `
+                            <button class="semester-tab ${sem === selectedSem ? 'active' : ''}" 
+                                onclick="window.switchSemester(${sem})">
+                                Semester ${sem}
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <div class="stats-row">
+                        <div class="sgpa-card">
+                            <div class="sgpa-label">Semester ${selectedSem} GPA</div>
+                            <div class="sgpa-value">${sgpa}</div>
+                        </div>
+                        <div class="cgpa-card">
+                            <div class="sgpa-label">Overall CGPA</div>
+                            <div class="sgpa-value">${cgpa}</div>
+                        </div>
+                        ${renderStatCard('Courses Passed', `${passCount}/${totalCourses}`, 'checkCircle', 'success')}
+                        ${renderStatCard('Total Credits', finalGrades.reduce((acc, g) => acc + (g.course?.credits || 0), 0), 'award', 'primary')}
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Semester ${selectedSem} Results</h3>
+                        </div>
+                        <div class="card-body">
+                            ${finalGrades.length > 0 ? `
+                                <table class="grades-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Course Code</th>
+                                            <th>Course Name</th>
+                                            <th>Credits</th>
+                                            <th>Marks</th>
+                                            <th>Grade</th>
+                                            <th>Result</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${finalGrades.map(g => `
+                                            <tr>
+                                                <td><strong>${g.course?.courseCode || 'N/A'}</strong></td>
+                                                <td>${g.course?.courseName || 'Unknown'}</td>
+                                                <td>${g.course?.credits || 0}</td>
+                                                <td>${g.marks}/${g.maxMarks}</td>
+                                                <td><span class="grade-badge grade-${g.grade?.replace('+', '\\+')}">${g.grade}</span></td>
+                                                <td class="${g.grade !== 'F' ? 'result-pass' : 'result-fail'}">
+                                                    <strong>${g.grade !== 'F' ? 'PASS' : 'FAIL'}</strong>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            ` : '<p class="text-muted text-center p-4">No grade records for this semester</p>'}
+                        </div>
+                    </div>
+
+                    ${semGrades.filter(g => g.examType !== 'final').length > 0 ? `
+                        <div class="card" style="margin-top: 1.5rem;">
+                            <div class="card-header">
+                                <h3 class="card-title">Internal Assessments</h3>
+                            </div>
+                            <div class="card-body">
+                                <table class="grades-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Course</th>
+                                            <th>Exam Type</th>
+                                            <th>Marks</th>
+                                            <th>Grade</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${semGrades.filter(g => g.examType !== 'final').map(g => `
+                                            <tr>
+                                                <td>${g.course?.courseName || 'Unknown'}</td>
+                                                <td>${g.examType === 'internal1' ? 'Internal 1' : g.examType === 'internal2' ? 'Internal 2' : g.examType}</td>
+                                                <td>${g.marks}/${g.maxMarks}</td>
+                                                <td><span class="grade-badge grade-${g.grade?.replace('+', '\\+')}">${g.grade}</span></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        window.switchSemester = function (sem) {
+            renderGradesPage(sem);
+        };
+
+        loadGrades();
+    </script>
+</body>
+
+</html>

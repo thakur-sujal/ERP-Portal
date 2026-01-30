@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Attendance - EduERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <style>
+        .attendance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .attendance-card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .attendance-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .course-code {
+            font-size: 0.75rem;
+            color: var(--primary-color);
+            font-weight: 600;
+            background: rgba(99, 102, 241, 0.1);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .course-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 0.5rem;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-pass {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .status-detained {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .attendance-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .progress-bar-container {
+            margin-top: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 8px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-bar.high {
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+
+        .progress-bar.medium {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        }
+
+        .progress-bar.low {
+            background: linear-gradient(90deg, #ef4444, #f87171);
+        }
+
+        .percentage-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+
+        .percentage-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .percentage-value.high {
+            color: #10b981;
+        }
+
+        .percentage-value.medium {
+            color: #f59e0b;
+        }
+
+        .percentage-value.low {
+            color: #ef4444;
+        }
+
+        .cgpa-card {
+            background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
+            border-radius: 16px;
+            padding: 2rem;
+            color: white;
+            text-align: center;
+        }
+
+        .cgpa-value {
+            font-size: 4rem;
+            font-weight: 800;
+        }
+
+        .cgpa-label {
+            font-size: 1.25rem;
+            opacity: 0.9;
+        }
+
+        .overall-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .overall-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .attendance-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <div id="sidebar"></div>
+        <main class="main-content" id="main-content">
+            <div class="page-loader" id="loader">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { requireAuth, getUser, getProfile } from '../js/auth.js';
+        import { studentService, gradeService } from '../js/api.js';
+        import { renderSidebar, renderStatCard } from '../js/components.js';
+        import { showToast } from '../js/toast.js';
+
+        if (!requireAuth(['student'])) {
+            throw new Error('Access denied');
+        }
+
+        const user = getUser();
+        document.getElementById('sidebar').innerHTML = renderSidebar('student', 'attendance');
+
+        async function loadAttendance() {
+            try {
+                const profileData = await getProfile();
+                const profile = profileData?.profile;
+
+                if (!profile) {
+                    document.getElementById('main-content').innerHTML = `
+                        <div class="animate-fade-in">
+                            <div class="page-header">
+                                <h1 class="page-title">My Attendance</h1>
+                                <p class="page-subtitle">Your student profile is being set up.</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const [attRes, gradeRes] = await Promise.all([
+                    studentService.getAttendance(profile._id, {}),
+                    studentService.getGrades(profile._id, { semester: profile.semester })
+                ]);
+
+                // Get enrolled course IDs for current semester
+                const enrolledCourseIds = (profile.enrolledCourses || []).map(c => c._id || c);
+
+                // Filter attendance to only show current semester (enrolled) courses
+                const currentSemesterAttendance = (attRes.summary || []).filter(a => {
+                    const courseId = a.course?._id || a.course;
+                    return enrolledCourseIds.includes(courseId);
+                });
+
+                renderAttendancePage(profile, currentSemesterAttendance, gradeRes);
+            } catch (error) {
+                console.error('Failed to load attendance:', error);
+                showToast('Failed to load data', 'error');
+            }
+        }
+
+        function calculateCGPA(grades) {
+            const gradePoints = {
+                'O': 10, 'A+': 9, 'A': 8, 'B+': 7, 'B': 6, 'C+': 5, 'C': 5, 'D': 4, 'F': 0
+            };
+
+            const finalGrades = grades.filter(g => g.examType === 'final');
+            if (finalGrades.length === 0) return 'N/A';
+
+            let totalCredits = 0;
+            let totalPoints = 0;
+
+            finalGrades.forEach(g => {
+                const credits = g.course?.credits || 3;
+                const points = gradePoints[g.grade] || 0;
+                totalCredits += credits;
+                totalPoints += points * credits;
+            });
+
+            return totalCredits > 0 ? (totalPoints / totalCredits).toFixed(2) : 'N/A';
+        }
+
+        function getPercentageClass(percentage) {
+            if (percentage >= 75) return 'high';
+            if (percentage >= 60) return 'medium';
+            return 'low';
+        }
+
+        function renderAttendancePage(profile, attendance, gradesData) {
+            const grades = gradesData.grades || [];
+            const cgpa = calculateCGPA(grades);
+
+            const totalHours = attendance.reduce((acc, a) => acc + a.total, 0);
+            const presentHours = attendance.reduce((acc, a) => acc + a.present + (a.late || 0), 0);
+            const absentHours = totalHours - presentHours;
+            const overallPercentage = totalHours > 0 ? ((presentHours / totalHours) * 100).toFixed(1) : 0;
+
+            const passCount = attendance.filter(a => parseFloat(a.percentage) >= 75).length;
+            const detainedCount = attendance.filter(a => parseFloat(a.percentage) < 75).length;
+
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">My Attendance & Results</h1>
+                        <p class="page-subtitle">
+                            ${profile.department || 'N/A'} • Semester ${profile.semester || 1} • Roll: ${profile.rollNumber || 'N/A'}
+                        </p>
+                    </div>
+
+                    <div class="overall-stats">
+                        ${renderStatCard('Total Hours', totalHours, 'clock', 'primary')}
+                        ${renderStatCard('Present Hours', presentHours, 'checkCircle', 'success')}
+                        ${renderStatCard('Absent Hours', absentHours, 'xCircle', 'warning')}
+                        ${renderStatCard('Overall %', `${overallPercentage}%`, 'chartBar', parseFloat(overallPercentage) >= 75 ? 'success' : 'error')}
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 300px; gap: 2rem; margin-bottom: 2rem;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Attendance Summary</h3>
+                                <span class="badge badge-primary">${attendance.length} Courses</span>
+                            </div>
+                            <div class="card-body">
+                                <div style="display: flex; gap: 2rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <div style="width: 12px; height: 12px; background: #10b981; border-radius: 50%;"></div>
+                                        <span>Pass (≥75%): ${passCount}</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <div style="width: 12px; height: 12px; background: #ef4444; border-radius: 50%;"></div>
+                                        <span>Detained (<75%): ${detainedCount}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="cgpa-card">
+                            <div class="cgpa-label">Current CGPA</div>
+                            <div class="cgpa-value">${cgpa}</div>
+                            <div style="font-size: 0.875rem; opacity: 0.8; margin-top: 0.5rem;">Based on ${grades.filter(g => g.examType === 'final').length} final exams</div>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-bottom: 1rem; color: var(--text-primary);">Subject-wise Attendance</h3>
+                    
+                    <div class="attendance-grid">
+                        ${attendance.length > 0 ? attendance.map(a => {
+                const percentage = parseFloat(a.percentage);
+                const percentClass = getPercentageClass(percentage);
+                const totalHrs = a.total;
+                const presentHrs = a.present + (a.late || 0);
+                const absentHrs = a.absent;
+                const status = percentage >= 75 ? 'PASS' : 'DETAINED';
+
+                return `
+                                <div class="attendance-card">
+                                    <div class="attendance-card-header">
+                                        <div>
+                                            <span class="course-code">${a.course?.courseCode || 'N/A'}</span>
+                                            <div class="course-name">${a.course?.courseName || 'Unknown Course'}</div>
+                                        </div>
+                                        <span class="status-badge ${status === 'PASS' ? 'status-pass' : 'status-detained'}">${status}</span>
+                                    </div>
+                                    
+                                    <div class="percentage-display">
+                                        <span class="percentage-value ${percentClass}">${percentage}%</span>
+                                    </div>
+                                    
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar ${percentClass}" style="width: ${percentage}%"></div>
+                                    </div>
+                                    
+                                    <div class="attendance-stats">
+                                        <div class="stat-item">
+                                            <div class="stat-value">${totalHrs}</div>
+                                            <div class="stat-label">Max Hours</div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-value" style="color: #10b981;">${presentHrs}</div>
+                                            <div class="stat-label">Present</div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-value" style="color: #ef4444;">${absentHrs}</div>
+                                            <div class="stat-label">Absent</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+            }).join('') : '<p class="text-center text-muted p-4">No attendance records found</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        loadAttendance();
+    </script>
+</body>
+
+</html>

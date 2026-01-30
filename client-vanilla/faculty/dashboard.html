@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faculty Dashboard - EduERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <div id="sidebar"></div>
+        <main class="main-content" id="main-content">
+            <div class="page-loader" id="loader">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { requireAuth, getUser, getProfile } from '../js/auth.js';
+        import { facultyService } from '../js/api.js';
+        import { renderSidebar, renderStatCard, renderCard, renderBadge, renderTable } from '../js/components.js';
+        import { showToast } from '../js/toast.js';
+
+        // Require faculty role
+        if (!requireAuth(['faculty'])) {
+            throw new Error('Access denied');
+        }
+
+        const user = getUser();
+
+        // Render sidebar
+        document.getElementById('sidebar').innerHTML = renderSidebar('faculty', 'dashboard');
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const profileData = await getProfile();
+                const profile = profileData?.profile;
+
+                if (!profile) {
+                    renderNoProfile();
+                    return;
+                }
+
+                const [courseRes, studentRes] = await Promise.all([
+                    facultyService.getCourses(profile._id),
+                    facultyService.getStudents(profile._id)
+                ]);
+
+                const courses = courseRes.courses || [];
+                const students = studentRes.students || [];
+
+                renderDashboard(profile, courses, students);
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+                showToast('Failed to load data', 'error');
+                renderError();
+            }
+        }
+
+        function renderNoProfile() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">Welcome, ${user?.firstName}!</h1>
+                        <p class="page-subtitle">Your faculty profile is being set up. Please contact admin.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderError() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">Welcome, ${user?.firstName}!</h1>
+                        <p class="page-subtitle">Error loading data. Please refresh the page.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDashboard(profile, courses, students) {
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">Welcome, ${user?.firstName}!</h1>
+                        <p class="page-subtitle">
+                            ${profile.department || 'N/A'} • ${profile.designation || 'Faculty'}
+                        </p>
+                    </div>
+
+                    <div class="stats-grid">
+                        ${renderStatCard('Assigned Courses', courses.length, 'bookOpen', 'primary')}
+                        ${renderStatCard('Total Students', students.length, 'users', 'secondary')}
+                        ${renderStatCard("Today's Classes", 0, 'clipboardList', 'success')}
+                        ${renderStatCard('Pending Grades', 0, 'award', 'warning')}
+                    </div>
+
+                    <div class="content-grid">
+                        ${renderCard('My Courses', courses.length > 0 ? `
+                            ${renderTable(
+                ['Code', 'Name', 'Department', 'Semester'],
+                courses.map(c => `
+                                    <tr>
+                                        <td>${renderBadge(c.courseCode, 'primary')}</td>
+                                        <td>${c.courseName}</td>
+                                        <td>${c.department}</td>
+                                        <td>Sem ${c.semester}</td>
+                                    </tr>
+                                `)
+            )}
+                        ` : '<p class="text-muted text-center p-4">No courses assigned yet</p>')}
+
+                        ${renderCard('Recent Students', students.length > 0 ? `
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                ${students.slice(0, 5).map(s => `
+                                    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 8px;">
+                                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.875rem; font-weight: 600;">
+                                            ${s.user?.firstName?.[0] || ''}${s.user?.lastName?.[0] || ''}
+                                        </div>
+                                        <div>
+                                            <p style="font-weight: 500; color: var(--text-primary);">${s.user?.firstName || ''} ${s.user?.lastName || ''}</p>
+                                            <p style="font-size: 0.75rem; color: var(--text-muted);">${s.rollNumber || ''}</p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p class="text-muted text-center p-4">No students in your courses</p>')}
+                    </div>
+                </div>
+            `;
+        }
+
+        loadDashboard();
+    </script>
+</body>
+
+</html>

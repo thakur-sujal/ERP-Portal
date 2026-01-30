@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - EduERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <div id="sidebar"></div>
+        <main class="main-content" id="main-content">
+            <div class="page-loader" id="loader">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { requireAuth, getUser, getProfile } from '../js/auth.js';
+        import { analyticsService } from '../js/api.js';
+        import { renderSidebar, renderStatCard, renderCard, renderBadge } from '../js/components.js';
+        import { showToast } from '../js/toast.js';
+
+        // Require admin role
+        if (!requireAuth(['admin'])) {
+            throw new Error('Access denied');
+        }
+
+        const user = getUser();
+
+        // Render sidebar
+        document.getElementById('sidebar').innerHTML = renderSidebar('admin', 'dashboard');
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const data = await analyticsService.getOverview();
+                renderDashboard(data);
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+                showToast('Failed to load dashboard data', 'error');
+                document.getElementById('main-content').innerHTML = `
+                    <div class="page-header">
+                        <h1 class="page-title">Welcome back, ${user?.firstName}!</h1>
+                        <p class="page-subtitle">Error loading dashboard data. Please refresh.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderDashboard(data) {
+            const stats = data.stats || {};
+            const departmentStats = data.departmentStats || [];
+            const recentUsers = data.recentUsers || [];
+
+            document.getElementById('main-content').innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="page-header">
+                        <h1 class="page-title">Welcome back, ${user?.firstName}!</h1>
+                        <p class="page-subtitle">Here's what's happening in your institution today.</p>
+                    </div>
+
+                    <div class="stats-grid">
+                        ${renderStatCard('Total Students', stats.totalStudents || 0, 'graduationCap', 'primary')}
+                        ${renderStatCard('Total Faculty', stats.totalFaculty || 0, 'users', 'secondary')}
+                        ${renderStatCard('Active Courses', stats.totalCourses || 0, 'bookOpen', 'success')}
+                        ${renderStatCard('Total Users', stats.totalUsers || 0, 'userCheck', 'warning')}
+                    </div>
+
+                    <div class="content-grid">
+                        ${renderCard('Students by Department', `
+                            <canvas id="deptChart" height="250"></canvas>
+                        `)}
+                        
+                        ${renderCard('Recent Users', `
+                            ${recentUsers.length > 0 ? `
+                                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                    ${recentUsers.map(u => `
+                                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 8px;">
+                                            <div style="width: 36px; height: 36px; background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.875rem; font-weight: 600;">
+                                                ${u.firstName?.[0] || ''}${u.lastName?.[0] || ''}
+                                            </div>
+                                            <div style="flex: 1;">
+                                                <p style="font-weight: 500; color: var(--text-primary);">${u.firstName} ${u.lastName}</p>
+                                                <p style="font-size: 0.75rem; color: var(--text-muted);">${u.email}</p>
+                                            </div>
+                                            ${renderBadge(u.role, u.role === 'admin' ? 'error' : u.role === 'faculty' ? 'warning' : 'primary')}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : '<p class="text-muted text-center p-4">No users yet</p>'}
+                        `)}
+                    </div>
+                </div>
+            `;
+
+            // Render chart if data available
+            if (departmentStats.length > 0) {
+                const ctx = document.getElementById('deptChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: departmentStats.map(d => d._id),
+                        datasets: [{
+                            label: 'Students',
+                            data: departmentStats.map(d => d.count),
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            },
+                            y: {
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+
+</html>
