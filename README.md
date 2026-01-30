@@ -38,7 +38,7 @@ A comprehensive Enterprise Resource Planning system for educational institutions
 
 1. **Clone the repository**
    ```bash
-   cd "smart campus sexy"
+   cd "smart campus "
    ```
 
 2. **Install server dependencies**
